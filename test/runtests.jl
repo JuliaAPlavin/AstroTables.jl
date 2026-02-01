@@ -63,6 +63,30 @@ end
     @test collect(skipmissing(t.Bmag)) ≈ expected_Bmag
 end
 
+# Nullable columns: limit specifiers [min/max]?, order specifiers ?+=, no-whitespace ?text.
+# Source: astropy io/ascii/tests/data/cds/null/ (ported from test_cds_ignore_nullable,
+# test_cds_no_whitespace, test_cds_order)
+@testitem "cds null" begin
+    using AstroASCIITables
+
+    # ReadMe: tests [min/max]?, ]min/max[?, and ?=value sentinels
+    readme = joinpath(@__DIR__, "data/cds/null/ReadMe")
+    t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/null/table.dat"); readme)
+    @test length(t) == 2
+    @test length(propertynames(t)) == 9
+    @test strip(t.Cluster[1]) == "Cr110"
+    @test t.Q[1] ≈ 0.289               # ?=-9.999 sentinel; this row is non-missing
+    @test t.EW[1] ≈ 29.5               # ?=-9.9 sentinel; this row is non-missing
+
+    # ReadMe1: adds order specifiers (?+=, ?-=, ?+) and no-whitespace ?text
+    readme1 = joinpath(@__DIR__, "data/cds/null/ReadMe1")
+    t1 = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/null/table1.dat"); readme=readme1)
+    @test length(t1) == 2
+    @test length(propertynames(t1)) == 10
+    @test t1.Q[1] ≈ 0.325              # ?=-9.999 sentinel; this row is non-missing
+    @test t1.EW[1] ≈ 58.0             # ?=-9.9 sentinel; this row is non-missing
+end
+
 @testitem "_" begin
     import Aqua
     Aqua.test_all(AstroASCIITables; ambiguities=false)

@@ -27,7 +27,7 @@ _is_section_delimiter(line) =
 function _cds_type(fmt)
     c = lowercase(first(match(r"[a-zA-Z]", fmt).match))
     c == 'i' && return Int64
-    c in ('f', 'e') && return Float64
+    c in ('f', 'e', 'd', 'g') && return Float64
     return String
 end
 
