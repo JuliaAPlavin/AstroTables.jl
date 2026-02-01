@@ -234,8 +234,7 @@ function read_cds(path; readme=nothing)
         end
     end
 
-    fwt_names = Tuple(c.name for c in cols)
-    StructArray(NamedTuple{fwt_names}(Tuple(getproperty(raw, n) for n in fwt_names)))
+    raw
 end
 
 end
