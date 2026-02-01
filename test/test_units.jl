@@ -4,13 +4,13 @@
 # test_cds_dimensionless, test_cds_log10_dimensionless, test_percent,
 # test_scaled_dimensionless.
 
-@testitem "cds_to_unitful grammar" begin
+@testitem "cds grammar" begin
     using Unitful
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds_to_unitful(s).unit
-    _valuefn(s) = cds_to_unitful(s).valuefn
+    _unit(s) = cds(s).unit
+    _valuefn(s) = cds(s).valuefn
 
     # ── test_cds_grammar: successful parses ──────────────────────────────
     # Each line corresponds to an entry in astropy's test_cds_grammar parametrize.
@@ -55,13 +55,13 @@
     @test _unit("a0.s") == NoUnits                              # Bohr radius not in Unitful; mapped to bohrRadius → warns
 end
 
-@testitem "cds_to_unitful dex" begin
+@testitem "cds dex" begin
     using Unitful
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds_to_unitful(s).unit
-    _valuefn(s) = cds_to_unitful(s).valuefn
+    _unit(s) = cds(s).unit
+    _valuefn(s) = cds(s).valuefn
 
     # ── test_cds_grammar: bracket/dex notation ────────────────────────────
     # CDS [unit] = dex (log10) of unit. We return the base unit + exp10 transform.
@@ -81,10 +81,11 @@ end
     @test _valuefn("[-]") === exp10
 end
 
-@testitem "cds_to_unitful fail" begin
+@testitem "cds fail" begin
     using Unitful
+    using UnitfulAstro
 
-    _unit(s) = cds_to_unitful(s).unit
+    _unit(s) = cds(s).unit
 
     # ── test_cds_grammar_fail: these are invalid CDS unit strings ────────
     # In astropy, all of these raise ValueError.
@@ -92,13 +93,18 @@ end
     @test _unit("0.1 nm") == NoUnits       # space in unit
     @test _unit("solMass(3/2)") == NoUnits  # exponent in parens
     @test_broken _unit("km / s") == NoUnits  # spaces: Unitful tolerates spaces, astropy rejects
+    @test _unit("km / s") == u"km/s"        # …but the result is correct
     @test _unit("km s-1") == NoUnits        # space instead of dot
     @test_broken _unit("km/s.Mpc-1") == NoUnits  # mixed dot and slash: our transform makes it valid
+    @test _unit("km/s.Mpc-1") == u"km/s/Mpc"     # …but the result is correct
     @test_broken _unit("/s.Mpc") == NoUnits       # leading slash + dot: our transform makes it valid
-    @test_broken _unit("pix0.1nm") == NoUnits      # pix removed → "0.1nm" parses; invalid CDS but unlikely
+    @test _unit("/s.Mpc") == u"s*Mpc^-1"           # …but the result is reasonable (leading / applies to whole expr)
+    @test _unit("pix0.1nm") == NoUnits               # invalid CDS: dimless unit glued to number, uparse fails
     @test _unit("pix/(0.1nm)") == 10u"nm^-1"        # pix removed, parses as /(0.1nm)
     @test_broken _unit("km*s") == NoUnits   # * not valid in CDS, but Unitful accepts it
-    @test _unit("km**2") == NoUnits         # ** not valid in CDS
+    @test _unit("km*s") == u"km*s"          # …but the result is correct
+    @test_broken _unit("km**2") == NoUnits   # ** not valid in CDS, but shared pipeline converts ** → ^
+    @test _unit("km**2") == u"km^2"          # …but the result is correct
     @test _unit("5x8+3m") == NoUnits        # non-base-10 factor
     @test _unit("0.1---") == NoUnits        # prefix before ---
     @test _unit("---m") == NoUnits          # --- before unit
@@ -113,12 +119,12 @@ end
     @test _unit("[--]") == NoUnits          # double dash in brackets
 end
 
-@testitem "cds_to_unitful name mappings" begin
+@testitem "cds name mappings" begin
     using Unitful
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds_to_unitful(s).unit
+    _unit(s) = cds(s).unit
 
     # ── CDS → Unitful name mappings ──────────────────────────────────────
     @test _unit("h") == u"hr"              # CDS h = hour, NOT Planck constant
@@ -150,13 +156,13 @@ end
     @test _unit("au") == u"AU"              # CDS accepts both AU and au
 end
 
-@testitem "cds_to_unitful extra" begin
+@testitem "cds extra" begin
     using Unitful
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds_to_unitful(s).unit
-    _valuefn(s) = cds_to_unitful(s).valuefn
+    _unit(s) = cds(s).unit
+    _valuefn(s) = cds(s).valuefn
 
     # ── Simple units (direct Unitful support) ─────────────────────────────
     @test _unit("K") == u"K"
@@ -218,4 +224,96 @@ end
     @test _unit("Jy.beam-1.pix-1") == 1u"Jy" # multiple dimensionless with powers
     @test _unit("ct2/s") == 1u"s^-1"          # count^2 per second → 1 s^-1
     @test _unit("beam-1") == 1 * NoUnits      # bare dimensionless with power
+end
+
+@testitem "vounit" begin
+    using Unitful
+    using UnitfulAstro
+    using UnitfulAngles
+
+    _unit(s) = vounit(s).unit
+
+    # ── ** power syntax (VOUnit-specific) ───────────────────────────────
+    @test _unit("m**-2") == u"m^-2"
+    @test _unit("s**-1") == u"s^-1"
+    @test _unit("km.s**-1") == u"km/s"
+    @test _unit("erg.s**-1.cm**-2") == u"erg/s/cm^2"
+    @test _unit("cm**-2.s**-1.keV**-1") == u"cm^-2*s^-1*keV^-1"
+
+    # ── Fractional exponents ──────────────────────────────────────────
+    @test _unit("m**(1/2)") == u"m^(1/2)"
+    @test _unit("Hz**(-1/2)") == u"Hz^(-1/2)"
+    @test _unit("kg.m2.s**(-5/2)") == u"kg*m^2*s^(-5/2)"
+
+    # ── unknown → NoUnits ───────────────────────────────────────────────
+    @test _unit("unknown") == Unitful.NoUnits
+    @test _unit("UNKNOWN") == Unitful.NoUnits
+    @test _unit("") == Unitful.NoUnits
+
+    # ── VOUnit name mappings ────────────────────────────────────────────
+    @test _unit("G") == u"Gauss"              # deprecated Gauss, not gravitational constant
+    @test _unit("a") == u"yr"                 # Julian year, not Are
+    @test _unit("angstrom") == u"Å"           # lowercase variant
+    @test _unit("Angstrom") == u"Å"           # shared with CDS
+
+    # ── Shared base mappings work in VOUnit too ─────────────────────────
+    @test _unit("solMass") == u"Msun"
+    @test _unit("arcsec") == u"arcsecond"
+    @test _unit("Ohm") == u"Ω"
+    @test _unit("h") == u"hr"
+
+    # ── Lenient: CDS-style strings also parse ───────────────────────────
+    @test _unit("km.s-1") == u"km/s"          # bare-sign power works too
+    @test _unit("km/s") == u"km/s"
+end
+
+@testitem "fits" begin
+    using Unitful
+    using UnitfulAstro
+    using UnitfulAngles
+
+    _unit(s) = fits(s).unit
+
+    # ── ** power syntax ─────────────────────────────────────────────────
+    @test _unit("m**-2") == u"m^-2"
+    @test _unit("erg.s**-1.cm**-2") == u"erg/s/cm^2"
+
+    # ── FITS name mappings ──────────────────────────────────────────────
+    @test _unit("G") == u"Gauss"
+    @test _unit("a") == u"yr"
+    @test _unit("angstrom") == u"Å"
+
+    # ── Common units ────────────────────────────────────────────────────
+    @test _unit("Jy") == u"Jy"
+    @test _unit("km") == u"km"
+    @test _unit("deg") == u"°"
+end
+
+@testitem "log units" begin
+    using Unitful, UnitfulAstro, UnitfulAngles
+
+    for parse_fn in [cds, vounit, fits]
+        _unit(s) = parse_fn(s).unit
+        _valuefn(s) = parse_fn(s).valuefn
+
+        @test _unit("log(K)") == u"K"
+        @test _valuefn("log(K)") === exp10
+        @test _unit("log(Hz)") == u"Hz"
+        @test _unit("log(cm/s2)") == u"cm/s^2"
+        @test _unit("log(km.s-1)") == u"km/s"
+    end
+
+    # Bracket notation still works identically
+    @test cds("[K]").unit == u"K"
+    @test cds("[K]").valuefn === exp10
+    @test cds("[-]").unit == NoUnits
+    @test cds("[-]").valuefn === exp10
+
+    # log(-) same as [-]
+    @test cds("log(-)").unit == NoUnits
+    @test cds("log(-)").valuefn === exp10
+
+    # Inner parse fails → fails
+    @test cds("log(cm s-2)").unit == NoUnits
+    @test cds("log()").unit == NoUnits
 end

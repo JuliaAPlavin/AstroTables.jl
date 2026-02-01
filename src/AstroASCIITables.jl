@@ -1,6 +1,6 @@
 module AstroASCIITables
 
-export cds_to_unitful
+export cds, vounit, fits, cds_to_unitful
 
 using StructArrays
 import FixedWidthTables as FWT
