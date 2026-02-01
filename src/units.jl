@@ -16,6 +16,7 @@ const _BASE_NAME_DICT = Dict(
     "Ohm" => "Ω",
     "lyr" => "ly",
     "au" => "AU",
+    "um" => "μm",
     "min" => "minute",      "h" => "hr",
 )
 
@@ -54,6 +55,10 @@ _letter_boundary_re(alts) = Regex("(?<![a-zA-Z])(" * join(sort!(collect(alts), b
 const _CDS_NAME_RE    = _letter_boundary_re(keys(_CDS_NAME_DICT))
 const _VOUNIT_NAME_RE = _letter_boundary_re(keys(_VOUNIT_NAME_DICT))
 const _FITS_NAME_RE   = _letter_boundary_re(keys(_FITS_NAME_DICT))
+
+# Generic: union of all format dicts; VOUnit wins on conflicts (G=Gauss, a=yr)
+const _GENERIC_NAME_DICT = merge(_CDS_NAME_DICT, _VOUNIT_NAME_DICT)
+const _GENERIC_NAME_RE   = _letter_boundary_re(keys(_GENERIC_NAME_DICT))
 
 
 # ── Dimensionless unit sets ───────────────────────────────────────────────────
@@ -160,53 +165,38 @@ function _parse_unit(s::AbstractString, name_re, name_dict)
 end
 
 
+# ── Format types ──────────────────────────────────────────────────────────────
+
+struct CDS end
+struct VOUnit end
+struct FITS end
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 """
-    cds(s) -> (; unit, valuefn)
+    parse_unit(s) -> (; unit, valuefn)
+    parse_unit(s, CDS()) -> (; unit, valuefn)
+    parse_unit(s, VOUnit()) -> (; unit, valuefn)
+    parse_unit(s, FITS()) -> (; unit, valuefn)
 
-Parse a CDS unit string (Standards for Astronomical Catalogues 2.0).
-Used by VizieR catalogues, CDS/MRT ASCII tables, VOTable <= 1.3.
+Parse an astronomical unit string. Without a format argument, uses a generic
+parser that accepts all syntax variants (CDS, VOUnit, FITS).
 
 Returns a `NamedTuple` with:
 - `unit`: a `Unitful.FreeUnits` object (`Unitful.NoUnits` for dimensionless or unparseable)
-- `valuefn`: `identity` for regular units, `exp10` for dex/bracket units like `[K]`
+- `valuefn`: `identity` for regular units, `exp10` for log/bracket units like `[K]` or `log(Hz)`
 
 # Examples
 ```julia
-cds("km.s-1")   # (unit = km s⁻¹, valuefn = identity)
-cds("[K]")       # (unit = K, valuefn = exp10)
-cds("---")       # (unit = , valuefn = identity)
+parse_unit("km/s")                       # (unit = km s⁻¹, valuefn = identity)
+parse_unit("km.s-1", CDS())              # CDS dot-multiplication, bare-sign powers
+parse_unit("m**-2", VOUnit())            # VOUnit ** power syntax
+parse_unit("erg.s**-1.cm**-2", FITS())   # FITS format
+parse_unit("[K]")                         # (unit = K, valuefn = exp10)
 ```
 """
-cds(s::AbstractString) = _parse_unit(s, _CDS_NAME_RE, _CDS_NAME_DICT)
-
-"""
-    vounit(s) -> (; unit, valuefn)
-
-Parse a VOUnit string (IVOA "Units in the VO" 1.1).
-Used by VOTable >= 1.4 and modern VO services.
-
-# Examples
-```julia
-vounit("m**-2")      # (unit = m⁻², valuefn = identity)
-vounit("km.s**-1")   # (unit = km s⁻¹, valuefn = identity)
-```
-"""
-vounit(s::AbstractString) = _parse_unit(s, _VOUNIT_NAME_RE, _VOUNIT_NAME_DICT)
-
-"""
-    fits(s) -> (; unit, valuefn)
-
-Parse a FITS unit string (FITS Standard 4.0, Section 4.3).
-Used by FITS file headers (BUNIT, TUNITn keywords).
-
-# Examples
-```julia
-fits("erg.s**-1.cm**-2")  # (unit = erg s⁻¹ cm⁻², valuefn = identity)
-```
-"""
-fits(s::AbstractString) = _parse_unit(s, _FITS_NAME_RE, _FITS_NAME_DICT)
-
-# Deprecated alias
-const cds_to_unitful = cds
+parse_unit(s::AbstractString) = _parse_unit(s, _GENERIC_NAME_RE, _GENERIC_NAME_DICT)
+parse_unit(s::AbstractString, ::CDS) = _parse_unit(s, _CDS_NAME_RE, _CDS_NAME_DICT)
+parse_unit(s::AbstractString, ::VOUnit) = _parse_unit(s, _VOUNIT_NAME_RE, _VOUNIT_NAME_DICT)
+parse_unit(s::AbstractString, ::FITS) = _parse_unit(s, _FITS_NAME_RE, _FITS_NAME_DICT)

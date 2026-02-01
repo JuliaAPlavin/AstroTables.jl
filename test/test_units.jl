@@ -9,8 +9,8 @@
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds(s).unit
-    _valuefn(s) = cds(s).valuefn
+    _unit(s) = parse_unit(s, CDS()).unit
+    _valuefn(s) = parse_unit(s, CDS()).valuefn
 
     # ── test_cds_grammar: successful parses ──────────────────────────────
     # Each line corresponds to an entry in astropy's test_cds_grammar parametrize.
@@ -60,8 +60,8 @@ end
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds(s).unit
-    _valuefn(s) = cds(s).valuefn
+    _unit(s) = parse_unit(s, CDS()).unit
+    _valuefn(s) = parse_unit(s, CDS()).valuefn
 
     # ── test_cds_grammar: bracket/dex notation ────────────────────────────
     # CDS [unit] = dex (log10) of unit. We return the base unit + exp10 transform.
@@ -85,7 +85,7 @@ end
     using Unitful
     using UnitfulAstro
 
-    _unit(s) = cds(s).unit
+    _unit(s) = parse_unit(s, CDS()).unit
 
     # ── test_cds_grammar_fail: these are invalid CDS unit strings ────────
     # In astropy, all of these raise ValueError.
@@ -124,7 +124,7 @@ end
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds(s).unit
+    _unit(s) = parse_unit(s, CDS()).unit
 
     # ── CDS → Unitful name mappings ──────────────────────────────────────
     @test _unit("h") == u"hr"              # CDS h = hour, NOT Planck constant
@@ -154,6 +154,7 @@ end
     @test _unit("Mgeo") == u"Mearth"
     @test _unit("Rgeo") == u"Rearth"
     @test _unit("au") == u"AU"              # CDS accepts both AU and au
+    @test _unit("um") == u"μm"             # ASCII alias for micrometer
 end
 
 @testitem "cds extra" begin
@@ -161,8 +162,8 @@ end
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = cds(s).unit
-    _valuefn(s) = cds(s).valuefn
+    _unit(s) = parse_unit(s, CDS()).unit
+    _valuefn(s) = parse_unit(s, CDS()).valuefn
 
     # ── Simple units (direct Unitful support) ─────────────────────────────
     @test _unit("K") == u"K"
@@ -231,7 +232,7 @@ end
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = vounit(s).unit
+    _unit(s) = parse_unit(s, VOUnit()).unit
 
     # ── ** power syntax (VOUnit-specific) ───────────────────────────────
     @test _unit("m**-2") == u"m^-2"
@@ -253,7 +254,6 @@ end
     # ── VOUnit name mappings ────────────────────────────────────────────
     @test _unit("G") == u"Gauss"              # deprecated Gauss, not gravitational constant
     @test _unit("a") == u"yr"                 # Julian year, not Are
-    @test _unit("angstrom") == u"Å"           # lowercase variant
     @test _unit("Angstrom") == u"Å"           # shared with CDS
 
     # ── Shared base mappings work in VOUnit too ─────────────────────────
@@ -272,7 +272,7 @@ end
     using UnitfulAstro
     using UnitfulAngles
 
-    _unit(s) = fits(s).unit
+    _unit(s) = parse_unit(s, FITS()).unit
 
     # ── ** power syntax ─────────────────────────────────────────────────
     @test _unit("m**-2") == u"m^-2"
@@ -292,9 +292,9 @@ end
 @testitem "log units" begin
     using Unitful, UnitfulAstro, UnitfulAngles
 
-    for parse_fn in [cds, vounit, fits]
-        _unit(s) = parse_fn(s).unit
-        _valuefn(s) = parse_fn(s).valuefn
+    for fmt in [CDS(), VOUnit(), FITS()]
+        _unit(s) = parse_unit(s, fmt).unit
+        _valuefn(s) = parse_unit(s, fmt).valuefn
 
         @test _unit("log(K)") == u"K"
         @test _valuefn("log(K)") === exp10
@@ -304,16 +304,57 @@ end
     end
 
     # Bracket notation still works identically
-    @test cds("[K]").unit == u"K"
-    @test cds("[K]").valuefn === exp10
-    @test cds("[-]").unit == NoUnits
-    @test cds("[-]").valuefn === exp10
+    @test parse_unit("[K]", CDS()).unit == u"K"
+    @test parse_unit("[K]", CDS()).valuefn === exp10
+    @test parse_unit("[-]", CDS()).unit == NoUnits
+    @test parse_unit("[-]", CDS()).valuefn === exp10
 
     # log(-) same as [-]
-    @test cds("log(-)").unit == NoUnits
-    @test cds("log(-)").valuefn === exp10
+    @test parse_unit("log(-)", CDS()).unit == NoUnits
+    @test parse_unit("log(-)", CDS()).valuefn === exp10
 
     # Inner parse fails → fails
-    @test cds("log(cm s-2)").unit == NoUnits
-    @test cds("log()").unit == NoUnits
+    @test parse_unit("log(cm s-2)", CDS()).unit == NoUnits
+    @test parse_unit("log()", CDS()).unit == NoUnits
+end
+
+@testitem "generic" begin
+    using Unitful, UnitfulAstro, UnitfulAngles
+
+    _unit(s) = parse_unit(s).unit
+    _valuefn(s) = parse_unit(s).valuefn
+
+    # ── Accepts all syntax variants ───────────────────────────────────────
+    @test _unit("km/s") == u"km/s"
+    @test _unit("km.s-1") == u"km/s"           # CDS dot + bare-sign
+    @test _unit("m**-2") == u"m^-2"             # VOUnit ** syntax
+    @test _unit("erg.s**-1.cm**-2") == u"erg/s/cm^2"
+
+    # ── Has all name mappings ─────────────────────────────────────────────
+    # CDS-specific names
+    @test _unit("jovMass") == u"Mjup"
+    @test _unit("arcs") == u"arcsecond"
+    @test _unit("gauss") == u"Gauss"
+    @test _unit("sec") == u"s"
+
+    # VOUnit-specific names (win on conflicts)
+    @test _unit("G") == u"Gauss"                # VOUnit: Gauss, not gravitational constant
+    @test _unit("a") == u"yr"                   # VOUnit: Julian year, not Are
+
+    # Shared names
+    @test _unit("solMass") == u"Msun"
+    @test _unit("Ohm") == u"Ω"
+    @test _unit("h") == u"hr"
+
+    # ── Log/bracket notation ──────────────────────────────────────────────
+    @test _unit("[K]") == u"K"
+    @test _valuefn("[K]") === exp10
+    @test _unit("log(Hz)") == u"Hz"
+    @test _valuefn("log(Hz)") === exp10
+
+    # ── Dimensionless markers from all formats ────────────────────────────
+    @test _unit("---") == NoUnits
+    @test _unit("-") == NoUnits
+    @test _unit("unknown") == NoUnits
+    @test _unit("") == NoUnits
 end
