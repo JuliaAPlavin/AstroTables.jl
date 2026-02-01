@@ -32,6 +32,16 @@ const _CDS_NAME_DICT = merge(_BASE_NAME_DICT, Dict(
     "sec" => "s",
 ))
 
+# Reverse mapping: Unitful abbreviation → canonical CDS name (only where they differ)
+const _CDS_REVERSE_NAME_DICT = Dict(
+    "M⊙" => "solMass",  "R⊙" => "solRad",  "L⊙" => "solLum",
+    "M⊕" => "Mearth",   "R⊕" => "Rearth",
+    "Å" => "Angstrom",   "Ω" => "Ohm",      "°" => "deg",
+    "hr" => "h",          "minute" => "min",
+    "′" => "arcmin",      "″" => "arcsec",
+    "ly" => "lyr",
+)
+
 # VOUnit additions (IVOA VOUnits 1.1)
 const _VOUNIT_NAME_DICT = merge(_BASE_NAME_DICT, Dict(
     "G" => "Gauss",         # VOUnit G = Gauss (deprecated); CDS G = gravitational constant (no remap needed)
@@ -200,3 +210,28 @@ parse_unit(s::AbstractString) = _parse_unit(s, _GENERIC_NAME_RE, _GENERIC_NAME_D
 parse_unit(s::AbstractString, ::CDS) = _parse_unit(s, _CDS_NAME_RE, _CDS_NAME_DICT)
 parse_unit(s::AbstractString, ::VOUnit) = _parse_unit(s, _VOUNIT_NAME_RE, _VOUNIT_NAME_DICT)
 parse_unit(s::AbstractString, ::FITS) = _parse_unit(s, _FITS_NAME_RE, _FITS_NAME_DICT)
+
+
+"""
+    unit_string(unit) -> String
+
+Convert a `Unitful.FreeUnits` to a CDS-format unit string.
+Returns `"---"` for dimensionless (`NoUnits`).
+
+# Examples
+```julia
+unit_string(u"km/s")    # "km.s**-1"
+unit_string(u"Msun")   # "solMass"
+unit_string(NoUnits)   # "---"
+```
+"""
+function unit_string(unit::Unitful.Units)
+    comps = typeof(unit).parameters[1]
+    isempty(comps) && return "---"
+    join(map(comps) do comp
+        name = get(_CDS_REVERSE_NAME_DICT, Unitful.abbr(comp), Unitful.abbr(comp))
+        s = Unitful.prefix(comp) * name
+        p = Int(Unitful.power(comp))
+        p == 1 ? s : s * "**" * string(p)
+    end, ".")
+end

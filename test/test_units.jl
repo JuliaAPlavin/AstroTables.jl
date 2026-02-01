@@ -318,6 +318,80 @@ end
     @test parse_unit("log()", CDS()).unit == NoUnits
 end
 
+@testitem "cds unit_string" begin
+    using Unitful
+    using UnitfulAstro
+    using UnitfulAngles
+
+    _str(u) = unit_string(u)
+
+    # ── Simple units (Unitful abbr = CDS name) ─────────────────────────────
+    @test _str(u"K") == "K"
+    @test _str(u"Hz") == "Hz"
+    @test _str(u"s") == "s"
+    @test _str(u"m") == "m"
+    @test _str(u"eV") == "eV"
+    @test _str(u"erg") == "erg"
+    @test _str(u"Jy") == "Jy"
+    @test _str(u"pc") == "pc"
+    @test _str(u"yr") == "yr"
+    @test _str(u"d") == "d"
+    @test _str(u"AU") == "AU"
+    @test _str(u"rad") == "rad"
+    @test _str(u"sr") == "sr"
+    @test _str(u"bar") == "bar"
+    @test _str(u"Gauss") == "Gauss"
+    @test _str(u"mas") == "mas"
+    @test _str(u"μas") == "μas"
+
+    # ── Reverse-mapped names (Unitful abbr → CDS canonical) ────────────────
+    @test _str(u"Msun") == "solMass"
+    @test _str(u"Rsun") == "solRad"
+    @test _str(u"Lsun") == "solLum"
+    @test _str(u"Mearth") == "Mearth"
+    @test _str(u"Rearth") == "Rearth"
+    @test _str(u"Mjup") == "Mjup"
+    @test _str(u"Å") == "Angstrom"
+    @test _str(u"ly") == "lyr"
+    @test _str(u"Ω") == "Ohm"
+    @test _str(u"hr") == "h"
+    @test _str(u"minute") == "min"
+    @test _str(u"arcminute") == "arcmin"
+    @test _str(u"arcsecond") == "arcsec"
+    @test _str(u"°") == "deg"
+
+    # ── SI-prefixed units ──────────────────────────────────────────────────
+    @test _str(u"km") == "km"
+    @test _str(u"kpc") == "kpc"
+    @test _str(u"Mpc") == "Mpc"
+    @test _str(u"Gyr") == "Gyr"
+    @test _str(u"mJy") == "mJy"
+    @test _str(u"keV") == "keV"
+    @test _str(u"GHz") == "GHz"
+    @test _str(u"μm") == "μm"
+    @test _str(u"cm") == "cm"
+    @test _str(u"nm") == "nm"
+
+    # ── Compound units with powers ─────────────────────────────────────────
+    @test _str(u"km/s") == "km.s**-1"
+    @test _str(u"m^2") == "m**2"
+    @test _str(u"pc^2") == "pc**2"
+    @test _str(u"cm/s^2") == "cm.s**-2"
+    @test _str(u"Msun/yr") == "solMass.yr**-1"
+    @test _str(u"Jy/sr") == "Jy.sr**-1"
+
+    # ── Dimensionless ──────────────────────────────────────────────────────
+    @test _str(Unitful.NoUnits) == "---"
+
+    # ── Roundtrip: unit_string → parse_unit → same unit ────────────────────
+    for uu in [u"km/s", u"Msun", u"Å", u"°", u"arcminute", u"arcsecond",
+               u"mas", u"μas", u"Gauss", u"Ω", u"hr", u"minute", u"ly",
+               u"mJy", u"kpc", u"Mpc", u"Gyr", u"K", u"Hz", u"pc^2", u"Jy/sr",
+               u"erg/s/cm^2", u"cm/s^2", u"Msun/yr"]
+        @test parse_unit(_str(uu)).unit == uu
+    end
+end
+
 @testitem "generic" begin
     using Unitful, UnitfulAstro, UnitfulAngles
 
