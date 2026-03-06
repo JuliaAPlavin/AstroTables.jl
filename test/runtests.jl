@@ -8,6 +8,7 @@ using TestItemRunner
     using Unitful, UnitfulAstro, UnitfulAngles
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 1
     @test t.Index[1] == 1
     @test t.RAh[1] == 3u"hr"
@@ -23,6 +24,7 @@ end
     readme = joinpath(@__DIR__, "data/cds/description/ReadMe")
     data   = joinpath(@__DIR__, "data/cds/description/table.dat")
     t = AstroASCIITables.read_cds(data; readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 2
 end
 
@@ -33,11 +35,13 @@ end
     readme = joinpath(@__DIR__, "data/cds/multi/ReadMe")
 
     t1 = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/multi/lhs2065.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t1, n)))), propertynames(t1))
     @test length(t1) == 18
     @test t1.Lambda[end] ≈ 647.932u"nm"
     @test strip(t1.Fnu[end]) == "0.285937"  # String column, units ignored
 
     t2 = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/multi/lp944-20.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t2, n)))), propertynames(t2))
     @test length(t2) == 18
     @test t2.Lambda[1] ≈ 647.609u"nm"
     @test strip(t2.Fnu[end]) == "0.489005"
@@ -48,6 +52,7 @@ end
 
     readme = joinpath(@__DIR__, "data/cds/glob/ReadMe")
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/glob/lmxbrefs.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 291
     @test strip(t.Name[end]) == "J1914+0953"
     @test strip(t.BibCode[end-1]) == "2005A&A...432..235R"
@@ -59,6 +64,7 @@ end
 
     readme = joinpath(@__DIR__, "data/vizier/ReadMe")
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/vizier/table1.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 15
     @test length(propertynames(t)) == 18
     expected_Bmag = [14.79, 15.00, 14.80, 12.38, 12.36, 12.24, 13.75,
@@ -75,6 +81,7 @@ end
     # ReadMe: tests [min/max]?, ]min/max[?, and ?=value sentinels
     readme = joinpath(@__DIR__, "data/cds/null/ReadMe")
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/null/table.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 2
     @test length(propertynames(t)) == 9
     @test strip(t.Cluster[1]) == "Cr110"
@@ -84,6 +91,7 @@ end
     # ReadMe1: adds order specifiers (?+=, ?-=, ?+) and no-whitespace ?text
     readme1 = joinpath(@__DIR__, "data/cds/null/ReadMe1")
     t1 = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/null/table1.dat"); readme=readme1)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t1, n)))), propertynames(t1))
     @test length(t1) == 2
     @test length(propertynames(t1)) == 10
     @test t1.Q[1] ≈ 0.325              # ?=-9.999 sentinel; this row is non-missing (--- units)
@@ -96,6 +104,7 @@ end
 @testitem "mrt dashes" begin
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds_mrt_dashes.txt"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 8
     @test length(propertynames(t)) == 2
     @test strip(t.DefaultName[1]) == "Sun"
@@ -112,6 +121,7 @@ end
     using Unitful, UnitfulAstro
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds2.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 215
     @test length(propertynames(t)) == 29
     @test strip(t.SST[1]) == "041314.1+281910"
@@ -128,6 +138,7 @@ end
 @testitem "cds no data" begin
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/no_data_cds.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 0
     @test length(propertynames(t)) == 12   # same columns as cds.dat
 end
@@ -137,6 +148,7 @@ end
     # cdsFunctional.dat: F18.16/F20.17/E24.18 wide floats, VizieR pipe-separator format
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cdsFunctional.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test length(t) == 1
     @test t.logTe[1] ≈ 10^3.85 * u"K"    # [K] means log10(K), valuefn=exp10
     @test t.Mass[1] ≈ 0.24458909u"Msun"
@@ -147,12 +159,14 @@ end
 
     # --- units=false returns raw numbers ---
     t_raw = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds.dat"); units=false)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t_raw, n)))), propertynames(t_raw))
     @test t_raw.RAh[1] isa Int64
     @test t_raw.RAs[1] isa Float64
     @test t_raw.RAs[1] ≈ 39.09
 
     # --- dimensionless (---) columns remain plain numbers ---
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(t, n)))), propertynames(t))
     @test t.Index[1] isa Int64          # --- units → plain number
 
     # --- String columns remain String ---
@@ -165,12 +179,14 @@ end
     # --- compound prefixed units (0.1nm, 0.1pm) scale values ---
     readme = joinpath(@__DIR__, "data/cds/null/ReadMe")
     tn = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds/null/table.dat"); readme)
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(tn, n)))), propertynames(tn))
     @test unit(tn.Wave[1]) == u"nm"         # 0.1nm → result in nm
     @test unit(tn.EW[1]) == u"pm"           # 0.1pm → result in pm
     @test unit(tn.chiEx[1]) == u"eV"
 
     # --- log notation: [K] applies exp10 ---
     tf = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cdsFunctional.dat"))
+    @test all(n -> isconcretetype(nonmissingtype(eltype(getproperty(tf, n)))), propertynames(tf))
     @test unit(tf.logTe[1]) == u"K"
     @test tf.logTe[1] ≈ 10^3.85 * u"K"     # valuefn=exp10 applied
     @test unit(tf.logg[1]) == u"cm/s^2"
