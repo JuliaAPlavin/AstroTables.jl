@@ -2,8 +2,12 @@ module AstroASCIITables
 
 using StructArrays
 using VOUnits
+import VOUnits: Unitful
 import FixedWidthTables as FWT
 
+# XXX: piracy – Unitful is missing *(::Missing, ::MixedUnits)
+# https://github.com/JuliaPhysics/Unitful.jl/pull/839
+Base.:*(::Missing, ::Unitful.MixedUnits) = missing
 
 # ── Column spec ──────────────────────────────────────────────────────────────
 
@@ -180,17 +184,45 @@ end
 
 
 
+# ── Apply Unitful units to parsed columns ─────────────────────────────────────
+
+function _apply_units(raw, cols)
+    components = StructArrays.components(raw)
+    new_cols = map(cols) do col
+        arr = components[col.name]
+        parsed = parse_unit(col.units)
+        if col.base_type === String
+            parsed.unit != Unitful.NoUnits && @warn "ignoring units for String column" col.name col.units
+            return arr
+        end
+        if parsed.unit == Unitful.NoUnits && parsed.valuefn === identity
+            arr
+        else
+            result = parsed.valuefn.(arr) .* parsed.unit
+            if Missing <: eltype(arr)
+                T = typeof(parsed.valuefn(one(nonmissingtype(eltype(arr)))) * parsed.unit)
+                convert(Vector{Union{Missing, T}}, result)
+            else
+                result
+            end
+        end
+    end
+    StructArray(NamedTuple{Tuple(c.name for c in cols)}(Tuple(new_cols)))
+end
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 """
-    read_cds(path; readme=nothing) -> StructArray
+    read_cds(path; readme=nothing, units=true) -> StructArray
 
 Read a CDS/Vizier fixed-width ASCII table.
 
 - `readme=nothing`: self-contained file (header + data in the same file).
 - `readme=<path>`: ReadMe file supplies the column header; `path` is the data file.
+- `units=true`: apply Unitful units to numeric columns based on the header metadata.
 """
-function read_cds(path; readme=nothing)
+function read_cds(path; readme=nothing, units=true)
     raw, cols = if readme !== nothing
         # Header from ReadMe (lazy iteration); data file streamed separately.
         cols = open(string(readme)) do io
@@ -209,7 +241,7 @@ function read_cds(path; readme=nothing)
         end
     end
 
-    raw
+    units ? _apply_units(raw, cols) : raw
 end
 
 
