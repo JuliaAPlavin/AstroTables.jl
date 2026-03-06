@@ -87,6 +87,41 @@ end
     @test t1.EW[1] ≈ 58.0             # ?=-9.9 sentinel; this row is non-missing
 end
 
+# MRT (Machine-Readable Table) files: CDS derivative used for AAS journal submissions.
+# Same Byte-by-byte column format, but with Title/Authors/Notes preamble.
+# Source: astropy io/ascii/tests/data/cds_mrt_dashes.txt
+@testitem "mrt dashes" begin
+
+    t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds_mrt_dashes.txt"))
+    @test length(t) == 8
+    @test length(propertynames(t)) == 2
+    @test strip(t.DefaultName[1]) == "Sun"
+    @test getproperty(t, Symbol("#CompsOnThisRow"))[1] == 1
+    @test strip(t.DefaultName[2]) == "--LP 704-15"
+    @test getproperty(t, Symbol("#CompsOnThisRow"))[2] == 3
+    @test strip(t.DefaultName[end]) == "G 129-47"
+    @test getproperty(t, Symbol("#CompsOnThisRow"))[end] == 1
+end
+
+# Large MRT file with many columns, nullable fields, limit flags, and Notes section.
+# Source: astropy io/ascii/tests/data/cds2.dat
+@testitem "mrt large" begin
+
+    t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/cds2.dat"))
+    @test length(t) == 215
+    @test length(propertynames(t)) == 29
+    @test strip(t.SST[1]) == "041314.1+281910"
+    @test strip(t.CName[1]) == "LkCa 1"
+    @test getproperty(t, Symbol("3.6mag"))[1] ≈ 8.54
+    @test strip(t.SST[end]) == "044642.6+245903"
+    @test strip(t.CName[end]) == "RXJ04467+2459"
+    # nullable columns produce missing where field is blank
+    @test eltype(getproperty(t, Symbol("e_4.5mag"))) == Union{Missing, Float64}
+    @test count(ismissing, getproperty(t, Symbol("e_4.5mag"))) == 26
+    @test ismissing(getproperty(t, Symbol("e_70mag"))[end])
+    @test ismissing(getproperty(t, Symbol("160mag"))[end])
+end
+
 @testitem "cds no data" begin
 
     t = AstroASCIITables.read_cds(joinpath(@__DIR__, "data/no_data_cds.dat"))
