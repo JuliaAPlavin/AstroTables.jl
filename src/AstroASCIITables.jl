@@ -1,8 +1,7 @@
 module AstroASCIITables
 
-export parse_unit, unit_string, CDS, VOUnit, FITS
-
 using StructArrays
+using VOUnits
 import FixedWidthTables as FWT
 
 
@@ -213,7 +212,5 @@ function read_cds(path; readme=nothing)
     raw
 end
 
-
-include("units.jl")
 
 end
