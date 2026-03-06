@@ -175,7 +175,7 @@ end)
 const MAX_READ_BYTES = 100_000
 
 function _collect_header_streaming!(io::IO)
-    parts = split(String(read(io, MAX_READ_BYTES)), '\n')
+    parts = split(String(Base.read(io, MAX_READ_BYTES)), '\n')
     last_delim_idx = findlast(ss -> _is_section_delimiter(rstrip(ss, '\r')), parts)
     isnothing(last_delim_idx) && error("No section delimiter found in CDS self-contained file")
     seek(io, last(parentindices(parts[last_delim_idx])[1]) + 1)
@@ -214,7 +214,7 @@ end
 # ── Public API ────────────────────────────────────────────────────────────────
 
 """
-    read_cds(path; readme=nothing, units=true) -> StructArray
+    read(path; readme=nothing, units=true) -> StructArray
 
 Read a CDS/Vizier fixed-width ASCII table.
 
@@ -222,7 +222,7 @@ Read a CDS/Vizier fixed-width ASCII table.
 - `readme=<path>`: ReadMe file supplies the column header; `path` is the data file.
 - `units=true`: apply Unitful units to numeric columns based on the header metadata.
 """
-function read_cds(path; readme=nothing, units=true)
+function read(path; readme=nothing, units=true)
     raw, cols = if readme !== nothing
         # Header from ReadMe (lazy iteration); data file streamed separately.
         cols = open(string(readme)) do io
