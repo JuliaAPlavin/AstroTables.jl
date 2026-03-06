@@ -1,1 +1,1 @@
-# AstroASCIITables.jl
+# AstroTables.jl

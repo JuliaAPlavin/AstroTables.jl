@@ -1,4 +1,4 @@
-module AstroASCIITables
+module AstroTables
 
 using StructArrays
 using VOUnits
